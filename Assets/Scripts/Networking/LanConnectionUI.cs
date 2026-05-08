@@ -294,7 +294,7 @@ namespace BattleSword.Networking
 
         private void DisableLocalShooterScenePlayer()
         {
-            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude);
             foreach (var behaviour in behaviours)
             {
                 if (behaviour == null || behaviour is LanConnectionUI || behaviour is NetworkBehaviour)
@@ -331,7 +331,7 @@ namespace BattleSword.Networking
 
         private static void DisableExtraSceneAudioListeners()
         {
-            var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude);
             foreach (var listener in listeners)
             {
                 if (listener.GetComponentInParent<NetworkPlayerController>() != null)

@@ -23,6 +23,7 @@ namespace BattleSword.Networking
         private CharacterController characterController;
         private Vector3 verticalVelocity;
         private float cameraPitch;
+        private float bodyYaw;
 
         private void Awake()
         {
@@ -33,6 +34,7 @@ namespace BattleSword.Networking
         {
             // Only the owning client should render from this camera or receive audio.
             SetLocalComponents(IsOwner);
+            bodyYaw = transform.eulerAngles.y;
 
             bodyColor.OnValueChanged += OnBodyColorChanged;
 
@@ -73,11 +75,12 @@ namespace BattleSword.Networking
             }
 
             var delta = Mouse.current.delta.ReadValue();
-            var mouseX = delta.x * lookSensitivity * Time.deltaTime;
-            var mouseY = delta.y * lookSensitivity * Time.deltaTime;
+            var mouseX = delta.x * lookSensitivity * 0.1f;
+            var mouseY = delta.y * lookSensitivity * 0.1f;
 
-            transform.Rotate(Vector3.up * mouseX);
+            bodyYaw += mouseX;
             cameraPitch = Mathf.Clamp(cameraPitch - mouseY, -80f, 80f);
+            transform.rotation = Quaternion.Euler(0f, bodyYaw, 0f);
 
             if (cameraPivot != null)
             {
