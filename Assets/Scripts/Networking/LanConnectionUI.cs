@@ -5,6 +5,8 @@ using System.Net.Sockets;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace BattleSword.Networking
@@ -32,6 +34,7 @@ namespace BattleSword.Networking
 
         private void Awake()
         {
+            EnsureInputSystemEventModule();
             EnsureMenuExists();
 
             if (singlePlayerButton != null)
@@ -327,6 +330,29 @@ namespace BattleSword.Networking
             if (connectionPanel != null && backButton == null)
             {
                 backButton = CreateMenuButton(connectionPanel.transform, "Back Button", new Vector2(0f, -250f), "Back");
+            }
+        }
+
+        private static void EnsureInputSystemEventModule()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                eventSystem = new GameObject("EventSystem").AddComponent<EventSystem>();
+            }
+
+            // The generated scene originally used StandaloneInputModule, which depends
+            // on legacy Input Manager axes like "Submit". This project uses the new
+            // Input System, so replace it before the EventSystem starts processing UI.
+            var standaloneInputModule = eventSystem.GetComponent<StandaloneInputModule>();
+            if (standaloneInputModule != null)
+            {
+                Destroy(standaloneInputModule);
+            }
+
+            if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
+            {
+                eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
             }
         }
 
