@@ -224,15 +224,12 @@ namespace BattleSword.Editor
             var playerNetworkPrefab = new NetworkPrefab { Prefab = playerPrefab };
             var projectileNetworkPrefab = new NetworkPrefab { Prefab = projectilePrefab };
 
-            if (!prefabsList.Contains(playerPrefab))
-            {
-                prefabsList.Add(playerNetworkPrefab);
-            }
+            var serialized = new SerializedObject(prefabsList);
+            serialized.FindProperty("List").arraySize = 0;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            if (!prefabsList.Contains(projectilePrefab))
-            {
-                prefabsList.Add(projectileNetworkPrefab);
-            }
+            prefabsList.Add(projectileNetworkPrefab);
+            prefabsList.Add(playerNetworkPrefab);
 
             EditorUtility.SetDirty(prefabsList);
             return prefabsList;

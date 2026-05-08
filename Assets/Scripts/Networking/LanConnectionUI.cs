@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -207,7 +208,6 @@ namespace BattleSword.Networking
 
             // Host listens on all local interfaces. Other players connect to the host's LAN IPv4.
             transport.SetConnectionData("0.0.0.0", port, "0.0.0.0");
-            DisableLocalShooterScenePlayer();
 
             var localIp = FindLocalIPv4Address();
             if (networkManager.StartHost())
@@ -216,6 +216,7 @@ namespace BattleSword.Networking
                     ? $"Hosting on port {port}. Find this PC's IPv4 with ipconfig."
                     : $"Hosting on {localIp}:{port}");
                 HideAllMenus();
+                StartCoroutine(DisableLocalShooterScenePlayerAfterNetworkSpawn(networkManager));
             }
             else
             {
@@ -244,12 +245,12 @@ namespace BattleSword.Networking
 
             // Clients connect directly to the host over LAN using Unity Transport UDP.
             transport.SetConnectionData(address, port);
-            DisableLocalShooterScenePlayer();
 
             if (networkManager.StartClient())
             {
                 SetStatus($"Joining {address}:{port}");
                 HideAllMenus();
+                StartCoroutine(DisableLocalShooterScenePlayerAfterNetworkSpawn(networkManager));
             }
             else
             {
@@ -290,6 +291,27 @@ namespace BattleSword.Networking
             }
 
             return true;
+        }
+
+        private IEnumerator DisableLocalShooterScenePlayerAfterNetworkSpawn(NetworkManager networkManager)
+        {
+            const float timeoutSeconds = 5f;
+            var deadline = Time.unscaledTime + timeoutSeconds;
+
+            while (Time.unscaledTime < deadline)
+            {
+                if (networkManager != null
+                    && networkManager.SpawnManager != null
+                    && networkManager.SpawnManager.GetLocalPlayerObject() != null)
+                {
+                    DisableLocalShooterScenePlayer();
+                    yield break;
+                }
+
+                yield return null;
+            }
+
+            SetStatus("Network session started, but no local network player spawned. Keeping scene player active.");
         }
 
         private void DisableLocalShooterScenePlayer()
