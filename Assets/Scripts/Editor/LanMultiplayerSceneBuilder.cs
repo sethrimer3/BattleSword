@@ -118,7 +118,8 @@ namespace BattleSword.Editor
             var cameras = root.GetComponentsInChildren<Camera>(true);
             var listeners = root.GetComponentsInChildren<AudioListener>(true);
             var ownerOnlyBehaviours = FindOwnerOnlyBehaviours(root);
-            ownerFilter.Configure(cameras, listeners, ownerOnlyBehaviours);
+            var ownerHiddenRenderers = FindOwnerHiddenRenderers(root);
+            ownerFilter.Configure(cameras, listeners, ownerOnlyBehaviours, ownerHiddenRenderers);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             Object.DestroyImmediate(root);
@@ -136,6 +137,28 @@ namespace BattleSword.Editor
                     return type.FullName == "UnityEngine.InputSystem.PlayerInput"
                         || type.Name == "Character"
                         || type.Name == "CameraLook";
+                })
+                .ToArray();
+        }
+
+        private static Renderer[] FindOwnerHiddenRenderers(GameObject root)
+        {
+            return root.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer != null)
+                .Where(renderer =>
+                {
+                    var current = renderer.transform;
+                    while (current != null && current != root.transform)
+                    {
+                        if (current.name.StartsWith("SK_FP_CH_", System.StringComparison.Ordinal))
+                        {
+                            return true;
+                        }
+
+                        current = current.parent;
+                    }
+
+                    return false;
                 })
                 .ToArray();
         }
