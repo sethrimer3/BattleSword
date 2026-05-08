@@ -4,9 +4,10 @@ A private, for-fun Warhammer 40K inspired Unity 3D shooter project.
 
 ## Unity Setup
 
-- Open this repository folder in Unity Hub.
-- Recommended editor line: Unity 2022.3 LTS.
+- Open this repository folder in Unity Hub. It should contain `Assets`, `Packages`, and `ProjectSettings`.
+- Required editor version: Unity 6000.4.6f1.
 - Unity will restore packages from `Packages/manifest.json` on first open.
+- If Unity opens to a blank scene, open `Assets/Scenes/Dev/LAN_Multiplayer_Test.unity`.
 - Put test scenes in `Assets/Scenes/Dev` and playable levels in `Assets/Scenes/Levels`.
 
 ## Project Layout
