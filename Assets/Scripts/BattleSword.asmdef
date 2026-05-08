@@ -3,7 +3,8 @@
   "rootNamespace": "BattleSword",
   "references": [
     "Unity.InputSystem",
-    "Unity.Netcode.Runtime"
+    "Unity.Netcode.Runtime",
+    "Unity.Networking.Transport"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
