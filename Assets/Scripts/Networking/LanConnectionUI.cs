@@ -11,8 +11,16 @@ namespace BattleSword.Networking
 {
     public sealed class LanConnectionUI : MonoBehaviour
     {
+        [Header("Main Menu")]
+        [SerializeField] private GameObject mainMenuPanel;
+        [SerializeField] private Button singlePlayerButton;
+        [SerializeField] private Button multiplayerButton;
+
+        [Header("LAN Connection")]
+        [SerializeField] private GameObject connectionPanel;
         [SerializeField] private Button hostButton;
         [SerializeField] private Button joinButton;
+        [SerializeField] private Button backButton;
         [SerializeField] private InputField ipAddressInput;
         [SerializeField] private InputField portInput;
         [SerializeField] private Text statusText;
@@ -22,8 +30,32 @@ namespace BattleSword.Networking
 
         private void Awake()
         {
-            hostButton.onClick.AddListener(StartHost);
-            joinButton.onClick.AddListener(StartClient);
+            EnsureMenuExists();
+
+            if (singlePlayerButton != null)
+            {
+                singlePlayerButton.onClick.AddListener(StartSinglePlayer);
+            }
+
+            if (multiplayerButton != null)
+            {
+                multiplayerButton.onClick.AddListener(ShowMultiplayerMenu);
+            }
+
+            if (hostButton != null)
+            {
+                hostButton.onClick.AddListener(StartHost);
+            }
+
+            if (joinButton != null)
+            {
+                joinButton.onClick.AddListener(StartClient);
+            }
+
+            if (backButton != null)
+            {
+                backButton.onClick.AddListener(ShowMainMenu);
+            }
 
             if (portInput != null && string.IsNullOrWhiteSpace(portInput.text))
             {
@@ -47,11 +79,21 @@ namespace BattleSword.Networking
                 ipAddressInput.text = localIp;
             }
 
-            SetStatus("Choose Host or enter a LAN IPv4 address and Join.");
+            ShowMainMenu();
         }
 
         private void OnDestroy()
         {
+            if (singlePlayerButton != null)
+            {
+                singlePlayerButton.onClick.RemoveListener(StartSinglePlayer);
+            }
+
+            if (multiplayerButton != null)
+            {
+                multiplayerButton.onClick.RemoveListener(ShowMultiplayerMenu);
+            }
+
             if (hostButton != null)
             {
                 hostButton.onClick.RemoveListener(StartHost);
@@ -61,6 +103,89 @@ namespace BattleSword.Networking
             {
                 joinButton.onClick.RemoveListener(StartClient);
             }
+
+            if (backButton != null)
+            {
+                backButton.onClick.RemoveListener(ShowMainMenu);
+            }
+        }
+
+        private void StartSinglePlayer()
+        {
+            if (!TryGetTransport(out var networkManager, out var transport))
+            {
+                // If this scene already has a non-networked FPS controller, this still
+                // lets the player proceed instead of being blocked by missing Netcode setup.
+                HideAllMenus();
+                return;
+            }
+
+            if (!TryReadPort(out var port))
+            {
+                return;
+            }
+
+            // Single-player uses a local host session so this prototype can reuse the
+            // NetworkPlayer prefab without maintaining a second controller path.
+            transport.SetConnectionData("127.0.0.1", port, "127.0.0.1");
+
+            if (networkManager.StartHost())
+            {
+                SetStatus("Starting single-player.");
+                HideAllMenus();
+            }
+            else
+            {
+                SetStatus("Could not start single-player session.");
+            }
+        }
+
+        private void ShowMainMenu()
+        {
+            if (mainMenuPanel != null)
+            {
+                mainMenuPanel.SetActive(true);
+            }
+
+            if (connectionPanel != null)
+            {
+                connectionPanel.SetActive(false);
+            }
+
+            SetStatus("Choose Single Player or Multiplayer.");
+            UnlockCursorForMenu();
+        }
+
+        private void ShowMultiplayerMenu()
+        {
+            if (mainMenuPanel != null)
+            {
+                mainMenuPanel.SetActive(false);
+            }
+
+            if (connectionPanel != null)
+            {
+                connectionPanel.SetActive(true);
+            }
+
+            SetStatus("Host a LAN game or join by IPv4 address.");
+            UnlockCursorForMenu();
+        }
+
+        private void HideAllMenus()
+        {
+            if (mainMenuPanel != null)
+            {
+                mainMenuPanel.SetActive(false);
+            }
+
+            if (connectionPanel != null)
+            {
+                connectionPanel.SetActive(false);
+            }
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         private void StartHost()
@@ -84,6 +209,7 @@ namespace BattleSword.Networking
                 SetStatus(string.IsNullOrWhiteSpace(localIp)
                     ? $"Hosting on port {port}. Find this PC's IPv4 with ipconfig."
                     : $"Hosting on {localIp}:{port}");
+                HideAllMenus();
             }
             else
             {
@@ -116,6 +242,7 @@ namespace BattleSword.Networking
             if (networkManager.StartClient())
             {
                 SetStatus($"Joining {address}:{port}");
+                HideAllMenus();
             }
             else
             {
@@ -158,6 +285,81 @@ namespace BattleSword.Networking
             return true;
         }
 
+        private void EnsureMenuExists()
+        {
+            if (connectionPanel == null && hostButton != null)
+            {
+                connectionPanel = hostButton.transform.parent.gameObject;
+            }
+
+            if (mainMenuPanel == null)
+            {
+                mainMenuPanel = CreatePanel("Main Menu Panel", new Vector2(380f, 230f));
+                CreateMenuText(mainMenuPanel.transform, "Title", new Vector2(0f, -32f), "BattleSword", 26);
+                singlePlayerButton = CreateMenuButton(mainMenuPanel.transform, "Single Player Button", new Vector2(0f, -94f), "Play Single-Player");
+                multiplayerButton = CreateMenuButton(mainMenuPanel.transform, "Multiplayer Button", new Vector2(0f, -148f), "Play Multi-Player");
+            }
+
+            if (connectionPanel != null && backButton == null)
+            {
+                backButton = CreateMenuButton(connectionPanel.transform, "Back Button", new Vector2(0f, -250f), "Back");
+            }
+        }
+
+        private GameObject CreatePanel(string name, Vector2 size)
+        {
+            var panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(transform, false);
+
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = size;
+
+            panel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
+            return panel;
+        }
+
+        private Text CreateMenuText(Transform parent, string name, Vector2 position, string value, int fontSize)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+
+            var rect = textObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(320f, 40f);
+            rect.anchoredPosition = position;
+
+            var text = textObject.GetComponent<Text>();
+            text.text = value;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.fontSize = fontSize;
+            return text;
+        }
+
+        private Button CreateMenuButton(Transform parent, string name, Vector2 position, string label)
+        {
+            var buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+
+            var rect = buttonObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(260f, 42f);
+            rect.anchoredPosition = position;
+
+            buttonObject.GetComponent<Image>().color = new Color(0.18f, 0.43f, 0.9f, 1f);
+
+            var labelText = CreateMenuText(buttonObject.transform, "Text", Vector2.zero, label, 16);
+            labelText.rectTransform.anchorMin = Vector2.zero;
+            labelText.rectTransform.anchorMax = Vector2.one;
+            labelText.rectTransform.offsetMin = Vector2.zero;
+            labelText.rectTransform.offsetMax = Vector2.zero;
+
+            return buttonObject.GetComponent<Button>();
+        }
+
         private void SetStatus(string message)
         {
             if (statusText != null)
@@ -166,6 +368,12 @@ namespace BattleSword.Networking
             }
 
             Debug.Log($"[LAN] {message}");
+        }
+
+        private static void UnlockCursorForMenu()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         public static string FindLocalIPv4Address()

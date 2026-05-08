@@ -2,6 +2,9 @@
 
 ## What Works
 
+- The LAN test scene now starts on a simple menu with `Play Single-Player` and `Play Multi-Player`.
+- `Play Single-Player` hides the menu and starts a local host session so the same prototype player can be used offline.
+- `Play Multi-Player` opens the LAN host/join panel.
 - `Assets/Scenes/Dev/LAN_Multiplayer_Test.unity` is the dedicated LAN multiplayer test scene.
 - The scene contains a `NetworkManager` using Unity Transport.
 - One player can host a LAN session on a selected UDP port.
@@ -22,18 +25,20 @@
 ## How To Host On LAN
 
 1. Open the test scene.
-2. Leave the port as `7777` unless you need a different port.
-3. Click `Host`.
-4. Tell the other player the displayed local IPv4 address and port.
-5. If Windows Defender Firewall prompts you, allow Unity or the built player on private networks.
+2. Click `Play Multi-Player`.
+3. Leave the port as `7777` unless you need a different port.
+4. Click `Host`.
+5. Tell the other player the displayed local IPv4 address and port.
+6. If Windows Defender Firewall prompts you, allow Unity or the built player on private networks.
 
 ## How To Join On LAN
 
 1. Make sure both computers are on the same Wi-Fi/router or wired LAN.
 2. Open the test scene or a build that starts in the test scene.
-3. Enter the host computer's local IPv4 address.
-4. Enter the same port as the host, usually `7777`.
-5. Click `Join`.
+3. Click `Play Multi-Player`.
+4. Enter the host computer's local IPv4 address.
+5. Enter the same port as the host, usually `7777`.
+6. Click `Join`.
 
 ## Finding The Host IPv4 Manually On Windows
 
@@ -46,7 +51,7 @@ The in-game local IP display uses the first non-loopback IPv4 address it can fin
 
 ## Testing Two Instances On One Computer
 
-- In the Unity Editor, click `Host`.
+- In the Unity Editor, click `Play Multi-Player`, then click `Host`.
 - Start a second instance from a standalone build and join `127.0.0.1` with port `7777`.
 - Some editor/build combinations can also work with the LAN IPv4 address shown in the UI.
 - Running two Unity Editor play sessions from the same project is not recommended.
