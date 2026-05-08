@@ -27,6 +27,8 @@ namespace BattleSword.Networking
         [SerializeField] private Text localIpText;
 
         private const ushort DefaultPort = 7777;
+        private bool menuOpen;
+        private float previousTimeScale = 1f;
 
         private void Awake()
         {
@@ -65,6 +67,7 @@ namespace BattleSword.Networking
 
         private void Start()
         {
+            previousTimeScale = Time.timeScale;
             var localIp = FindLocalIPv4Address();
 
             if (localIpText != null)
@@ -80,6 +83,18 @@ namespace BattleSword.Networking
             }
 
             ShowMainMenu();
+        }
+
+        private void Update()
+        {
+            if (!menuOpen)
+            {
+                return;
+            }
+
+            // Some FPS controllers lock the cursor every frame. While the menu is open,
+            // keep taking control back so uGUI can receive mouse clicks.
+            UnlockCursorForMenu();
         }
 
         private void OnDestroy()
@@ -142,6 +157,9 @@ namespace BattleSword.Networking
 
         private void ShowMainMenu()
         {
+            menuOpen = true;
+            Time.timeScale = 0f;
+
             if (mainMenuPanel != null)
             {
                 mainMenuPanel.SetActive(true);
@@ -158,6 +176,9 @@ namespace BattleSword.Networking
 
         private void ShowMultiplayerMenu()
         {
+            menuOpen = true;
+            Time.timeScale = 0f;
+
             if (mainMenuPanel != null)
             {
                 mainMenuPanel.SetActive(false);
@@ -174,6 +195,9 @@ namespace BattleSword.Networking
 
         private void HideAllMenus()
         {
+            menuOpen = false;
+            Time.timeScale = previousTimeScale <= 0f ? 1f : previousTimeScale;
+
             if (mainMenuPanel != null)
             {
                 mainMenuPanel.SetActive(false);
@@ -308,7 +332,7 @@ namespace BattleSword.Networking
 
         private GameObject CreatePanel(string name, Vector2 size)
         {
-            var panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var panel = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
             panel.transform.SetParent(transform, false);
 
             var rect = panel.GetComponent<RectTransform>();
@@ -319,6 +343,9 @@ namespace BattleSword.Networking
             rect.sizeDelta = size;
 
             panel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
+            var canvasGroup = panel.GetComponent<CanvasGroup>();
+            canvasGroup.blocksRaycasts = true;
+            canvasGroup.interactable = true;
             return panel;
         }
 
