@@ -1,2 +1,45 @@
-# Auto detect text files and perform LF normalization
+# Auto detect text files and perform LF normalization.
 * text=auto
+
+# Unity text assets
+*.cs text diff=csharp
+*.shader text
+*.cginc text
+*.hlsl text
+*.asmdef text
+*.json text
+*.xml text
+*.uxml text
+*.uss text
+*.unity text eol=lf
+*.prefab text eol=lf
+*.asset text eol=lf
+*.mat text eol=lf
+*.meta text eol=lf
+*.controller text eol=lf
+*.anim text eol=lf
+*.overrideController text eol=lf
+*.physicsMaterial2D text eol=lf
+*.physicMaterial text eol=lf
+
+# Binary art/audio/model formats
+*.psd binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tga binary
+*.tif binary
+*.tiff binary
+*.exr binary
+*.fbx binary
+*.blend binary
+*.obj binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+
+# Use UnityYAMLMerge when configured locally.
+*.unity merge=unityyamlmerge eol=lf
+*.prefab merge=unityyamlmerge eol=lf
+*.asset merge=unityyamlmerge eol=lf
+*.mat merge=unityyamlmerge eol=lf
