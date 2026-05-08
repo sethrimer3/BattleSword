@@ -3,8 +3,9 @@
 ## What Works
 
 - The LAN test scene now starts on a simple menu with `Play Single-Player` and `Play Multi-Player`.
-- `Play Single-Player` hides the menu and starts a local host session so the same prototype player can be used offline.
+- `Play Single-Player` hides the menu and leaves the existing FPS scene player active.
 - `Play Multi-Player` opens the LAN host/join panel.
+- Host/Join disables the local-only Low Poly Shooter player/camera before Netcode spawns the multiplayer player.
 - `Assets/Scenes/Dev/LAN_Multiplayer_Test.unity` is the dedicated LAN multiplayer test scene.
 - The scene contains a `NetworkManager` using Unity Transport.
 - One player can host a LAN session on a selected UDP port.

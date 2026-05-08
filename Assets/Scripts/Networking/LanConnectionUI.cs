@@ -130,32 +130,10 @@ namespace BattleSword.Networking
 
         private void StartSinglePlayer()
         {
-            if (!TryGetTransport(out var networkManager, out var transport))
-            {
-                // If this scene already has a non-networked FPS controller, this still
-                // lets the player proceed instead of being blocked by missing Netcode setup.
-                HideAllMenus();
-                return;
-            }
-
-            if (!TryReadPort(out var port))
-            {
-                return;
-            }
-
-            // Single-player uses a local host session so this prototype can reuse the
-            // NetworkPlayer prefab without maintaining a second controller path.
-            transport.SetConnectionData("127.0.0.1", port, "127.0.0.1");
-
-            if (networkManager.StartHost())
-            {
-                SetStatus("Starting single-player.");
-                HideAllMenus();
-            }
-            else
-            {
-                SetStatus("Could not start single-player session.");
-            }
+            // Single-player is the existing FPS scene: no Netcode session, no extra
+            // network player prefab. This avoids controlling two player objects at once.
+            SetStatus("Starting single-player.");
+            HideAllMenus();
         }
 
         private void ShowMainMenu()
@@ -229,6 +207,7 @@ namespace BattleSword.Networking
 
             // Host listens on all local interfaces. Other players connect to the host's LAN IPv4.
             transport.SetConnectionData("0.0.0.0", port, "0.0.0.0");
+            DisableLocalShooterScenePlayer();
 
             var localIp = FindLocalIPv4Address();
             if (networkManager.StartHost())
@@ -265,6 +244,7 @@ namespace BattleSword.Networking
 
             // Clients connect directly to the host over LAN using Unity Transport UDP.
             transport.SetConnectionData(address, port);
+            DisableLocalShooterScenePlayer();
 
             if (networkManager.StartClient())
             {
@@ -310,6 +290,57 @@ namespace BattleSword.Networking
             }
 
             return true;
+        }
+
+        private void DisableLocalShooterScenePlayer()
+        {
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var behaviour in behaviours)
+            {
+                if (behaviour == null || behaviour is LanConnectionUI || behaviour is NetworkBehaviour)
+                {
+                    continue;
+                }
+
+                var behaviourType = behaviour.GetType();
+                var behaviourNamespace = behaviourType.Namespace;
+                if (string.IsNullOrWhiteSpace(behaviourNamespace) || !behaviourNamespace.StartsWith("InfimaGames.LowPolyShooterPack", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (behaviourType.Name != "Character" && behaviourType.Name != "CameraLook")
+                {
+                    continue;
+                }
+
+                var root = behaviour.transform.root;
+                if (root == transform.root)
+                {
+                    continue;
+                }
+
+                // The imported Low Poly Shooter sample has a complete local-only FPS
+                // character already in the scene. Multiplayer uses the Netcode player
+                // prefab instead, so disable that local-only root before Host/Join.
+                root.gameObject.SetActive(false);
+            }
+
+            DisableExtraSceneAudioListeners();
+        }
+
+        private static void DisableExtraSceneAudioListeners()
+        {
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var listener in listeners)
+            {
+                if (listener.GetComponentInParent<NetworkPlayerController>() != null)
+                {
+                    continue;
+                }
+
+                listener.enabled = false;
+            }
         }
 
         private void EnsureMenuExists()
