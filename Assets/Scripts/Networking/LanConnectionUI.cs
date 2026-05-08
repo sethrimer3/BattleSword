@@ -334,7 +334,7 @@ namespace BattleSword.Networking
             var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude);
             foreach (var listener in listeners)
             {
-                if (listener.GetComponentInParent<NetworkPlayerController>() != null)
+                if (listener.GetComponentInParent<NetworkPlayerController>() != null || listener.GetComponentInParent<NetworkPlayerOwnerFilter>() != null)
                 {
                     continue;
                 }

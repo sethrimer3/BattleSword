@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 using BattleSword.Networking;
 using Unity.Netcode;
 using Unity.Netcode.Components;
@@ -18,6 +19,7 @@ namespace BattleSword.Editor
     {
         private const string ScenePath = "Assets/Scenes/Dev/LAN_Multiplayer_Test.unity";
         private const string PlayerPrefabPath = "Assets/Prefabs/Networking/NetworkPlayer.prefab";
+        private const string LowPolyShooterPlayerPrefabPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/P_LPSP_FP_CH.prefab";
         private const string ProjectilePrefabPath = "Assets/Prefabs/Networking/NetworkTestProjectile.prefab";
         private const string NetworkPrefabsListPath = "Assets/Prefabs/Networking/LAN_NetworkPrefabs.asset";
 
@@ -28,10 +30,16 @@ namespace BattleSword.Editor
 
         private static void BuildMissingAssets()
         {
-            if (!File.Exists(ScenePath) || !File.Exists(PlayerPrefabPath) || !File.Exists(ProjectilePrefabPath))
+            if (!File.Exists(ScenePath) || !File.Exists(PlayerPrefabPath) || !File.Exists(ProjectilePrefabPath) || PlayerPrefabNeedsRebuild())
             {
                 Build();
             }
+        }
+
+        private static bool PlayerPrefabNeedsRebuild()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+            return playerPrefab == null || playerPrefab.GetComponent<NetworkPlayerOwnerFilter>() == null;
         }
 
         [MenuItem("BattleSword/Build LAN Multiplayer Test Scene")]
@@ -50,8 +58,8 @@ namespace BattleSword.Editor
 
             CreateLighting();
             CreateGround();
-            CreateSpawnMarkers();
-            CreateNetworkManager(playerPrefab, projectilePrefab);
+            var spawnPoints = CreateSpawnMarkers();
+            CreateNetworkManager(playerPrefab, projectilePrefab, spawnPoints);
             CreateCanvas();
             CreateEventSystem();
 
@@ -70,45 +78,66 @@ namespace BattleSword.Editor
 
         private static GameObject BuildPlayerPrefab()
         {
-            var root = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            root.name = "NetworkPlayer";
-            Object.DestroyImmediate(root.GetComponent<Collider>());
+            var sourcePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(LowPolyShooterPlayerPrefabPath);
+            GameObject root;
+            if (sourcePrefab != null)
+            {
+                root = (GameObject)PrefabUtility.InstantiatePrefab(sourcePrefab);
+                root.name = "NetworkPlayer";
+            }
+            else
+            {
+                root = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                root.name = "NetworkPlayer";
+                Object.DestroyImmediate(root.GetComponent<Collider>());
+            }
+
             root.transform.position = Vector3.zero;
 
-            var networkObject = root.AddComponent<NetworkObject>();
-            root.AddComponent<CharacterController>().height = 2f;
-            root.AddComponent<OwnerNetworkTransform>();
+            if (root.GetComponent<NetworkObject>() == null)
+            {
+                root.AddComponent<NetworkObject>();
+            }
 
-            var bodyRenderer = root.GetComponent<MeshRenderer>();
-            bodyRenderer.sharedMaterial = CreateMaterial("NetworkPlayer_Default_Mat", Color.cyan);
+            if (root.GetComponent<CharacterController>() == null)
+            {
+                root.AddComponent<CharacterController>().height = 2f;
+            }
 
-            var pivot = new GameObject("CameraPivot").transform;
-            pivot.SetParent(root.transform);
-            pivot.localPosition = new Vector3(0f, 0.65f, 0f);
+            if (root.GetComponent<OwnerNetworkTransform>() == null)
+            {
+                root.AddComponent<OwnerNetworkTransform>();
+            }
 
-            var cameraObject = new GameObject("OwnerCamera");
-            cameraObject.transform.SetParent(pivot);
-            cameraObject.transform.localPosition = new Vector3(0f, 0.25f, 0f);
-            cameraObject.transform.localRotation = Quaternion.identity;
-            var camera = cameraObject.AddComponent<Camera>();
-            var listener = cameraObject.AddComponent<AudioListener>();
-            camera.enabled = false;
-            listener.enabled = false;
+            var ownerFilter = root.GetComponent<NetworkPlayerOwnerFilter>();
+            if (ownerFilter == null)
+            {
+                ownerFilter = root.AddComponent<NetworkPlayerOwnerFilter>();
+            }
 
-            var controller = root.AddComponent<NetworkPlayerController>();
-            var projectilePrefab = AssetDatabase.LoadAssetAtPath<NetworkProjectile>(ProjectilePrefabPath);
-
-            var serialized = new SerializedObject(controller);
-            serialized.FindProperty("playerCamera").objectReferenceValue = camera;
-            serialized.FindProperty("audioListener").objectReferenceValue = listener;
-            serialized.FindProperty("bodyRenderer").objectReferenceValue = bodyRenderer;
-            serialized.FindProperty("cameraPivot").objectReferenceValue = pivot;
-            serialized.FindProperty("testProjectilePrefab").objectReferenceValue = projectilePrefab;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var cameras = root.GetComponentsInChildren<Camera>(true);
+            var listeners = root.GetComponentsInChildren<AudioListener>(true);
+            var ownerOnlyBehaviours = FindOwnerOnlyBehaviours(root);
+            ownerFilter.Configure(cameras, listeners, ownerOnlyBehaviours);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        private static Behaviour[] FindOwnerOnlyBehaviours(GameObject root)
+        {
+            return root.GetComponentsInChildren<Behaviour>(true)
+                .Where(component => component != null)
+                .Where(component => !(component is NetworkBehaviour))
+                .Where(component =>
+                {
+                    var type = component.GetType();
+                    return type.FullName == "UnityEngine.InputSystem.PlayerInput"
+                        || type.Name == "Character"
+                        || type.Name == "CameraLook";
+                })
+                .ToArray();
         }
 
         private static GameObject BuildProjectilePrefab()
@@ -132,12 +161,13 @@ namespace BattleSword.Editor
             return prefab;
         }
 
-        private static void CreateNetworkManager(GameObject playerPrefab, GameObject projectilePrefab)
+        private static void CreateNetworkManager(GameObject playerPrefab, GameObject projectilePrefab, Transform[] spawnPoints)
         {
             var prefabsList = BuildNetworkPrefabsList(playerPrefab, projectilePrefab);
             var networkManagerObject = new GameObject("NetworkManager");
             var networkManager = networkManagerObject.AddComponent<NetworkManager>();
             networkManagerObject.AddComponent<UnityTransport>();
+            var spawnPointAssigner = networkManagerObject.AddComponent<LanSpawnPointAssigner>();
 
             var config = new NetworkConfig
             {
@@ -148,6 +178,15 @@ namespace BattleSword.Editor
             config.Prefabs.NetworkPrefabsLists ??= new List<NetworkPrefabsList>();
             config.Prefabs.NetworkPrefabsLists.Add(prefabsList);
             networkManager.NetworkConfig = config;
+
+            var serialized = new SerializedObject(spawnPointAssigner);
+            var spawnPointsProperty = serialized.FindProperty("spawnPoints");
+            spawnPointsProperty.arraySize = spawnPoints.Length;
+            for (var i = 0; i < spawnPoints.Length; i++)
+            {
+                spawnPointsProperty.GetArrayElementAtIndex(i).objectReferenceValue = spawnPoints[i];
+            }
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static NetworkPrefabsList BuildNetworkPrefabsList(GameObject playerPrefab, GameObject projectilePrefab)
@@ -302,13 +341,18 @@ namespace BattleSword.Editor
             ground.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial("LAN_Ground_Mat", new Color(0.22f, 0.24f, 0.25f));
         }
 
-        private static void CreateSpawnMarkers()
+        private static Transform[] CreateSpawnMarkers()
         {
+            var spawnPoints = new Transform[4];
             for (var i = 0; i < 4; i++)
             {
                 var marker = new GameObject($"Spawn Reference {i + 1}");
                 marker.transform.position = new Vector3((i - 1.5f) * 3f, 0.05f, 0f);
+                marker.transform.rotation = Quaternion.identity;
+                spawnPoints[i] = marker.transform;
             }
+
+            return spawnPoints;
         }
 
         private static void CreateEventSystem()
