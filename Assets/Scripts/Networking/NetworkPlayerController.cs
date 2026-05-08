@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace BattleSword.Networking
 {
@@ -58,7 +59,7 @@ namespace BattleSword.Networking
             HandleLook();
             HandleMovement();
 
-            if (Input.GetKeyDown(KeyCode.F))
+            if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
             {
                 RequestSpawnTestProjectileRpc(playerCamera.transform.position, playerCamera.transform.forward);
             }
@@ -66,8 +67,14 @@ namespace BattleSword.Networking
 
         private void HandleLook()
         {
-            var mouseX = Input.GetAxis("Mouse X") * lookSensitivity;
-            var mouseY = Input.GetAxis("Mouse Y") * lookSensitivity;
+            if (Mouse.current == null)
+            {
+                return;
+            }
+
+            var delta = Mouse.current.delta.ReadValue();
+            var mouseX = delta.x * lookSensitivity * Time.deltaTime;
+            var mouseY = delta.y * lookSensitivity * Time.deltaTime;
 
             transform.Rotate(Vector3.up * mouseX);
             cameraPitch = Mathf.Clamp(cameraPitch - mouseY, -80f, 80f);
@@ -80,7 +87,36 @@ namespace BattleSword.Networking
 
         private void HandleMovement()
         {
-            var input = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            var moveX = 0f;
+            var moveZ = 0f;
+
+            if (keyboard.aKey.isPressed)
+            {
+                moveX -= 1f;
+            }
+
+            if (keyboard.dKey.isPressed)
+            {
+                moveX += 1f;
+            }
+
+            if (keyboard.sKey.isPressed)
+            {
+                moveZ -= 1f;
+            }
+
+            if (keyboard.wKey.isPressed)
+            {
+                moveZ += 1f;
+            }
+
+            var input = new Vector3(moveX, 0f, moveZ);
             input = Vector3.ClampMagnitude(input, 1f);
 
             var move = transform.TransformDirection(input) * moveSpeed;
@@ -90,7 +126,7 @@ namespace BattleSword.Networking
                 verticalVelocity.y = -2f;
             }
 
-            if (characterController.isGrounded && Input.GetKeyDown(KeyCode.Space))
+            if (characterController.isGrounded && keyboard.spaceKey.wasPressedThisFrame)
             {
                 verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             }
