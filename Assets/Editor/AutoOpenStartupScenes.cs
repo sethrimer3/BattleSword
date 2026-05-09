@@ -10,7 +10,7 @@ public static class AutoOpenStartupScenes
     // Change these paths to match your real scene paths.
     private static readonly string[] StartupScenePaths =
     {
-        "Assets/Scenes/Dev/LAN_Multiplayer_Test.unity"
+        "Assets/Scenes/Dev/LAN_Multiplayer_Test.unity",
         "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Scenes/S_Content_Overview.unity"
     };
 
